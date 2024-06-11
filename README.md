@@ -56,7 +56,7 @@ Run `./setup.sh`
 
 Go to the `hess-empirical-docking` folder.
 
-`./dist/Release/GNU-Linux/hess-empirical-docking -r protein_example.pdb -l ligand_example.pdb --autobox_ligand crystal_example.pdb --depth 500 --number_of_iterations 40 -o results.sdf`
+`dist/Release/GNU-Linux/hess-empirical-docking -r protein_example.pdb -l ligand_example.pdb --autobox_ligand crystal_example.pdb --depth 500 --number_of_iterations 40 -o res./ults.sdf`
 
 ## Preparation
 

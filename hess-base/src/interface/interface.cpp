@@ -371,17 +371,21 @@ void hessFillGridWithDerivs(void* opt_v) {
 }
 
 int hessRunOptimize(int number_of_iterations, int depth, void* opt_v, double* result_array, int tops_count) {
+  
   Optimizable_molecule *opt = to_optmolecule(opt_v);
   int error_flag = 0;
   if (opt->optimize == "mc") {
     error_flag = hessRunRandomIls(number_of_iterations, depth, opt_v, result_array, tops_count);
   } else if (opt->optimize == "mc_metropolis") {
     error_flag = hessRunMonteCarlo(number_of_iterations, opt_v, result_array, tops_count);
+  } else if (opt->optimize == "swarm"){
+    error_flag = hessRunSwarm(number_of_iterations, depth, opt_v, result_array, tops_count);
   }
   return error_flag;
 }
 
 int hessRunRandomIls(int number_of_iterations, int depth, void* opt_v, double* result_array, int tops_count) {
+  
   try {
     Optimizable_molecule *opt = to_optmolecule(opt_v);
     hess::Molecule* ord_lig = opt->ligand;
@@ -422,6 +426,56 @@ int hessRunRandomIls(int number_of_iterations, int depth, void* opt_v, double* r
     return -1;
   }
 }
+
+
+int hessRunSwarm(int number_of_iterations, int depth, void* opt_v, double* result_array, int tops_count) {
+  try {
+    Optimizable_molecule *opt = to_optmolecule(opt_v);
+    hess::Molecule* ord_lig = opt->ligand;
+    hess::Molecule* ord_rec = opt->receptor;
+    const char* scoring_type = opt->scoring;
+    
+    double dif = 0.1;
+
+    unsigned max_bfgs_iterations = unsigned((25.0 + ord_lig->get_atoms_count()) / 3.0);
+
+    opt->set_max_bfgs_iterations(max_bfgs_iterations);
+
+    vector< pair< Eigen::VectorXd, pair<double, double> > >result_pairs;
+
+    fprintf(hessGetStream(), "Starting Swarm. Number of iterations: %d. Depth: %d\n", number_of_iterations, depth);
+
+    for (int i = 0; i < number_of_iterations; i++) {
+      Eigen::VectorXd swarm_result;
+
+      swarm_result = Swarm(*opt, depth, dif);
+
+      pair<double, double> res = calc_energy_for_result(ord_lig, ord_rec, opt->tr, opt->in, opt->encoding_inv, swarm_result, scoring_type);
+      fprintf(hessGetStream(), "Iteration %3i Inter energy: %7.3f Intra energy: %7.3f Sum: %7.3f\n",
+              i + 1, res.first, res.second, res.first + res.second);
+      result_pairs.push_back({swarm_result,
+        {res.first, res.second}});
+    }
+
+    sort_configurations(result_pairs);
+    opt->tops_count = min((unsigned) result_pairs.size(), (unsigned) tops_count);
+    form_ils_results(result_pairs, opt);
+    result_array[0] = result_pairs[0].second.first;
+    result_array[1] = result_pairs[0].second.second;
+    return 0;
+    
+  } catch (HessException &e) {
+    _error_message = e.what();
+    return -1;
+  } catch (indigo::Exception &e) {
+    _error_message = e.what();
+    return -1;
+  } catch (exception &e) {
+    _error_message = e.what();
+    return -1;
+  }
+}
+
 
 int hessRunMonteCarlo(int number_of_iterations, void* opt_v, double* result_array, int tops_count) {
   try {

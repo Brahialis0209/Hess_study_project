@@ -38,6 +38,7 @@
       <itemPath>src/bond/hybridization.cpp</itemPath>
       <itemPath>src/empirical-docking/ils_primitives.cpp</itemPath>
       <itemPath>src/empirical-docking/ils_random.cpp</itemPath>
+      <itemPath>src/empirical-docking/my_analog.cpp</itemPath>
       <itemPath>src/interface/interface.cpp</itemPath>
       <itemPath>src/model/logger.cpp</itemPath>
       <itemPath>src/empirical-docking/matrix4.cpp</itemPath>
@@ -168,6 +169,11 @@
             flavor2="0">
       </item>
       <item path="src/empirical-docking/ils_random.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+       <item path="src/empirical-docking/my_analog.cpp"
             ex="false"
             tool="1"
             flavor2="0">
@@ -336,6 +342,11 @@
             flavor2="0">
       </item>
       <item path="src/empirical-docking/ils_random.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+       <item path="src/empirical-docking/my_analog.cpp"
             ex="false"
             tool="1"
             flavor2="0">
