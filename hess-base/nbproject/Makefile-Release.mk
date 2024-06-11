@@ -45,6 +45,7 @@ OBJECTFILES= \
 	${OBJECTDIR}/src/empirical-docking/global_optimizer.o \
 	${OBJECTDIR}/src/empirical-docking/ils_primitives.o \
 	${OBJECTDIR}/src/empirical-docking/ils_random.o \
+	${OBJECTDIR}/src/empirical-docking/my_analog.o \
 	${OBJECTDIR}/src/empirical-docking/matrix4.o \
 	${OBJECTDIR}/src/empirical-docking/monte_carlo_entropy.o \
 	${OBJECTDIR}/src/empirical-docking/optimizable_molecule.o \
@@ -135,6 +136,13 @@ ${OBJECTDIR}/src/empirical-docking/ils_random.o: src/empirical-docking/ils_rando
 	${MKDIR} -p ${OBJECTDIR}/src/empirical-docking
 	${RM} "$@.d"
 	$(COMPILE.cc) -O3 -Isrc -Isrc/interface -Isrc/bond -Isrc/model -Isrc/empirical-docking -I../openbabel -I../indigo/Indigo/core/indigo-core/common -I../indigo/Indigo/core/indigo-core -I../indigo/Indigo/api/c/indigo -I../indigo/Indigo/third_party/object_threadsafe -I../lbfgspp -I../indigo/Indigo/api/cpp/src -I../indigo/Indigo/api/c/indigo-inchi -I../indigo/Indigo/api/c/indigo-renderer -I../indigo/Indigo/api/c/bingo-nosql -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/empirical-docking/ils_random.o src/empirical-docking/ils_random.cpp
+
+${OBJECTDIR}/src/empirical-docking/my_analog.o: src/empirical-docking/my_analog.cpp 
+	${MKDIR} -p ${OBJECTDIR}/src/empirical-docking
+	${RM} "$@.d"
+	$(COMPILE.cc) -O3 -Isrc -Isrc/interface -Isrc/bond -Isrc/model -Isrc/empirical-docking -I../openbabel -I../indigo/Indigo/core/indigo-core/common -I../indigo/Indigo/core/indigo-core -I../indigo/Indigo/api/c/indigo -I../indigo/Indigo/third_party/object_threadsafe -I../lbfgspp -I../indigo/Indigo/api/cpp/src -I../indigo/Indigo/api/c/indigo-inchi -I../indigo/Indigo/api/c/indigo-renderer -I../indigo/Indigo/api/c/bingo-nosql -MMD -MP -MF "$@.d" -o ${OBJECTDIR}/src/empirical-docking/my_analog.o src/empirical-docking/my_analog.cpp
+
+
 
 ${OBJECTDIR}/src/empirical-docking/matrix4.o: src/empirical-docking/matrix4.cpp
 	${MKDIR} -p ${OBJECTDIR}/src/empirical-docking
