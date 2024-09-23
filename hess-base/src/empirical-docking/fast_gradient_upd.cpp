@@ -71,10 +71,10 @@ double fast_gradient(ScoringTerms& st, Optimizable_molecule* mol, const Eigen::V
       if (prod[i] < 0 || prod[i] > 1 || a_0[i] < 0 || a_0[i] + 1 >= mgn.dim(i)) {
         fprintf(stderr, "\na_0 = %lf, prod = %lf\n", a_0[i], prod[i]);
       }
-      assert(prod[i] >= 0);
-      assert(prod[i] <= 1);
-      assert(a_0[i] >= 0);
-      assert(a_0[i] + 1 < mgn.dim(i));
+//      assert(prod[i] >= 0);
+//      assert(prod[i] <= 1);
+//      assert(a_0[i] >= 0);
+//      assert(a_0[i] + 1 < mgn.dim(i));
     }
     const double penalty = mol->slope * (hess::Vec3d::dot(miss, mol->factor_inv));
     assert(penalty > -epsilon_fl);

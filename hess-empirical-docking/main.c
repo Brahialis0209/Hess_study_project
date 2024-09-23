@@ -160,7 +160,8 @@ int OptCmdParse(int argc, char *argv[], Opt* params) {
       return -1;
     }
   }
-  if (strcmp(params->optimize, "mc") != 0 && strcmp(params->optimize, "mc_metropolis") && strcmp(params->optimize, "swarm") != 0) {
+  if (strcmp(params->optimize, "mc") != 0 && strcmp(params->optimize, "mc_metropolis") && 
+          strcmp(params->optimize, "swarm") != 0 && strcmp(params->optimize, "swarm_metropolis") != 0) {
     fprintf(stderr, "Unrecognized option %s.'\n\nCorrect usage:\n\n", help_message);
     return -1;
   }
@@ -172,7 +173,6 @@ int OptCmdParse(int argc, char *argv[], Opt* params) {
 }
 
 int main(int argc, char *argv[]) {
-  printf("Do my changes even work?\n");
   double size_x = 40.0, size_y = 40.0, size_z = 40.0, xc = 0.0, yc = 0.0, zc = 0.0, granularity = 0.375;
   int depth = 10000, number_of_iterations = 100, tops_count = 10, grid_deriv_flag = 0;
   unsigned seed = 12345;
@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   double result[2] = {0};
-  fprintf(stream, "Version: Dec 27, 2023\n");
+  fprintf(stream, "Version: Aug 30, 2024\n");
   void* opt_molecule = hessMakeOptimizableMolecule(lig_atoms, rec_atoms, box, optimize, granularity, seed);
   if (opt_molecule == NULL) {
     hessDestroy(parser);

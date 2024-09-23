@@ -38,12 +38,12 @@
       <itemPath>src/bond/hybridization.cpp</itemPath>
       <itemPath>src/empirical-docking/ils_primitives.cpp</itemPath>
       <itemPath>src/empirical-docking/ils_random.cpp</itemPath>
-      <itemPath>src/empirical-docking/my_analog.cpp</itemPath>
       <itemPath>src/interface/interface.cpp</itemPath>
       <itemPath>src/model/logger.cpp</itemPath>
       <itemPath>src/empirical-docking/matrix4.cpp</itemPath>
       <itemPath>src/model/molecule.cpp</itemPath>
       <itemPath>src/empirical-docking/monte_carlo_entropy.cpp</itemPath>
+      <itemPath>src/empirical-docking/my_analog.cpp</itemPath>
       <itemPath>src/empirical-docking/optimizable_molecule.cpp</itemPath>
       <itemPath>src/empirical-docking/optimization_methods.cpp</itemPath>
       <itemPath>src/parser/parser.cpp</itemPath>
@@ -173,16 +173,16 @@
             tool="1"
             flavor2="0">
       </item>
-       <item path="src/empirical-docking/my_analog.cpp"
-            ex="false"
-            tool="1"
-            flavor2="0">
-      </item>
       <item path="src/empirical-docking/matrix4.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="src/empirical-docking/matrix4.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="src/empirical-docking/monte_carlo_entropy.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="src/empirical-docking/my_analog.cpp"
             ex="false"
             tool="1"
             flavor2="0">
@@ -346,16 +346,16 @@
             tool="1"
             flavor2="0">
       </item>
-       <item path="src/empirical-docking/my_analog.cpp"
-            ex="false"
-            tool="1"
-            flavor2="0">
-      </item>
       <item path="src/empirical-docking/matrix4.cpp" ex="false" tool="1" flavor2="0">
       </item>
       <item path="src/empirical-docking/matrix4.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="src/empirical-docking/monte_carlo_entropy.cpp"
+            ex="false"
+            tool="1"
+            flavor2="0">
+      </item>
+      <item path="src/empirical-docking/my_analog.cpp"
             ex="false"
             tool="1"
             flavor2="0">

@@ -8,17 +8,19 @@ using Eigen::MatrixXd;
 using Eigen::VectorXf;
 using namespace LBFGSpp;
 
+thread_local static std::string _error_message;
+
 //https://ru.wikipedia.org/wiki/%D0%9C%D0%B5%D1%82%D0%BE%D0%B4_%D1%80%D0%BE%D1%8F_%D1%87%D0%B0%D1%81%D1%82%D0%B8%D1%86
 
 double random_in_interval_urd(double a, double b){
-    std::random_device rd;   
-    std::mt19937 gen(rd()); 
-    std::uniform_real_distribution<> dis(a, b);
-    return dis(gen);  
+//    std::random_device rd;   
+//    std::mt19937 gen(rd()); 
+//    std::uniform_real_distribution<> dis(a, b);
+//    return dis(gen);  
+  return random_fl_ab( a,  b) ;
 }
 
-Eigen::VectorXd generate_Vector_coord_urd(VectorXd a, VectorXd b){ //генерирует вектор. a и b - границы распределения
-  if(a.size() != b.size()) throw "My bad, you tried to generate a random vector, but limits have different sizes (coord)";
+Eigen::VectorXd generate_Vector_coord_urd(VectorXd& a, VectorXd& b){ //генерирует вектор. a и b - границы распределения
   int size = a.size();
   VectorXd answer = VectorXd::Zero(size);
   for(int i = 0; i < size; i++){
@@ -27,8 +29,7 @@ Eigen::VectorXd generate_Vector_coord_urd(VectorXd a, VectorXd b){ //генер�
   return answer;
 }
 
-Eigen::VectorXd generate_Vector_velocity_urd(VectorXd a, VectorXd b){ //в описании алгоритма начальная скорость частицы -(a[i] - b[i]), (a[i] - b[i])
-  if(a.size() != b.size()) throw "My bad, you tried to generate a random vector, but limits have different sizes (velocity)";
+Eigen::VectorXd generate_Vector_velocity_urd(VectorXd& a, VectorXd& b){ //в описании алгоритма начальная скорость частицы -(a[i] - b[i]), (a[i] - b[i])
   int size = a.size();
   VectorXd answer = VectorXd::Zero(size);
   for(int i = 0; i < size; i++){
@@ -46,51 +47,33 @@ Eigen::VectorXd generate_Vector_zero_one_urd(int size){ //для шага алг
 }
 
 
-
-
-Eigen::VectorXd Swarm(Optimizable_molecule& mol, int depth, double dif) {
-  double w = 0.36; //константы для алгоритма
-  double f = 1; 
-
-  std::array<VectorXd, 8> current_cords {}; //8 - количество частиц в рое
-  std::array<VectorXd, 8> velocity {};
-  std::array<VectorXd, 8> current_best {};
-  std::array<double, 8> current_best_value {};
-
-
-  int solve_size = mol.encoding.size(); //размер молекулы (количество переменных - координаты центра, углы поворота 3*N угла поворота связей)
-  double size_x = mol.size_x; //размеры box'a 
+Eigen::VectorXd GenerateCoord( Optimizable_molecule& mol ) {
+  int solve_size = mol.encoding.size();
+  double size_x = mol.size_x; 
   double size_y = mol.size_y;
   double size_z = mol.size_z;
-
   double conr[3] = {size_x, size_y, size_z}; 
-  double start_conr[3] = {size_x, size_y, size_z}; //сохраняем начальные значения отдельно
-
-  int conr_id = 0;
-  double fx = 1000;
-
-  VectorXd x = VectorXd::Zero(solve_size); //изменяемый вектор 
-  
-  //насколько я поняла, в этой части алгоритма идёт определение начального положения белка так, что бы он не выходил за границы
+  double start_conr[3] = {size_x, size_y, size_z};
   int start_pos_attempts = 0; 
   int MAX_START_ATTEMPTS = 40; 
   int MAX_START_SECOND_ATTEMPTS = 80; 
   bool (*box_start_checker)(hess::Molecule *lig, double size_x, double size_y, double size_z, simplified_tree& tr, int& ex_count, const vector<int>& encoding_inv, const Eigen::VectorXd & x);
   box_start_checker = check_exceeded_box_limits_start;
+  VectorXd x = VectorXd::Zero(solve_size); 
   bool was_moved = false; 
   int ex_count = 0;
-
+  int conr_id = 0;
   while (true) {
     conr_id = 0;
     start_pos_attempts += 1;
     if (start_pos_attempts > MAX_START_ATTEMPTS && !was_moved) {
-      start_conr[0] = size_x / 2; //изменяем начальное положение
+      start_conr[0] = size_x / 2;
       start_conr[1] = size_y / 2;
       start_conr[2] = size_z / 2;
-      box_start_checker = check_exceeded_box_limits; //проверка - box_start_checker и check_exceeded_box_limits - функция - переменная?
+      box_start_checker = check_exceeded_box_limits; 
       was_moved = true;
     }
-    if (start_pos_attempts > MAX_START_SECOND_ATTEMPTS && was_moved) {
+    if (start_pos_attempts > MAX_START_SECOND_ATTEMPTS && was_moved) { 
       throw HessException("Failed to place the ligand in the box. Check box dimensions. Maybe he's too small");
     }
     for (int i = 0; i < solve_size - 3; i++) //генерируем случайные координаты начала
@@ -102,65 +85,150 @@ Eigen::VectorXd Swarm(Optimizable_molecule& mol, int depth, double dif) {
     if (!box_start_checker(mol.ligand, size_x, size_y, size_z, mol.tr, ex_count, mol.encoding_inv, x))
       break;
   }
+  return x;
+}
 
+
+
+
+Eigen::VectorXd Swarm(Optimizable_molecule& mol, int depth, double dif) {
+  double w = 1; //константы для алгоритма
+  double w_diff = 1e-2;
+  double w_limit = 0.4;
+  const int warms_count = 200;
+  std::array<VectorXd, warms_count> current_cords {}; //8 - количество частиц в рое
+  std::array<VectorXd, warms_count> velocity {};
+  std::array<VectorXd, warms_count> current_best {};
+  std::array<double, warms_count> current_best_value {};
+  
+
+
+  int solve_size = mol.encoding.size(); 
+  double size_x = mol.size_x; 
+  double size_y = mol.size_y;
+  double size_z = mol.size_z;
+  double conr[3] = {size_x, size_y, size_z}; 
+ 
+  
   LBFGSParam<double> param;
   LBFGSSolver<double> solver(param);
   param.epsilon = 0.0001;
   param.epsilon_rel = 0.0001;
   double alpha = 0.99995, beta = 0.99995;
-
-
   VectorXd bestans = VectorXd::Zero(solve_size); //вектор с лучшим ответом
   double best = 1000.0;
-
-  VectorXd a = VectorXd::Zero(solve_size); //интервалы для того, чтобы генерировать векторы в этих пределах
-  VectorXd b = VectorXd::Zero(solve_size); //причём генерируются только начальные 
-  for(int i = 0 ; i < solve_size - 3 ; i++){
-    b[i] = random_in_interval_urd(0, 2*M_PI);
-  }
-  for(int i = solve_size - 3; i < solve_size; i++){
-    b[i] = random_in_interval_urd(x[i] - 0.2*x[i], x[i] + 0.2*x[i]); //известные границы - здесь я так и не разобралась, какие границы ставить
-    //вариант 1 - x[i] - 0.2*x[i], x[i] + 0.2*x[i]
-    //вариант 2 -  -2*abs(x[i]),  2*abs(x[i]) - потому что...
-    //Но и так и так работает одинаково (выдаёт один и тот же результат)
-    //В пределах a , b будут задаваться координаты начальных (и только начальных) положений частиц роя
-    //Поэтому, при достаточно большом количестве итераций частицы так или иначе соберуться у оптимального положения
-  }
+  
+//  double start_conr[3] = {size_x, size_y, size_z}; 
+//  int conr_id = 0;
+//  VectorXd x = VectorXd::Zero(solve_size);
+//  int start_pos_attempts = 0; 
+//  int MAX_START_ATTEMPTS = 40; 
+//  int MAX_START_SECOND_ATTEMPTS = 80; 
+//  bool (*box_start_checker)(hess::Molecule *lig, double size_x, double size_y, double size_z, simplified_tree& tr, int& ex_count, const vector<int>& encoding_inv, const Eigen::VectorXd & x);
+//  box_start_checker = check_exceeded_box_limits_start;
+//  bool was_moved = false; 
+//  int ex_count = 0;
+//  while (true) {
+//    conr_id = 0;
+//    start_pos_attempts += 1;
+//    if (start_pos_attempts > MAX_START_ATTEMPTS && !was_moved) {
+//      start_conr[0] = size_x / 2; //изменяем начальное положение
+//      start_conr[1] = size_y / 2;
+//      start_conr[2] = size_z / 2;
+//      box_start_checker = check_exceeded_box_limits; //проверка - box_start_checker и check_exceeded_box_limits - функция - переменная?
+//      was_moved = true;
+//    }
+//    if (start_pos_attempts > MAX_START_SECOND_ATTEMPTS && was_moved) {
+//      throw HessException("Failed to place the ligand in the box. Check box dimensions. Maybe he's too small");
+//    }
+//    for (int i = 0; i < solve_size - 3; i++) //генерируем случайные координаты начала
+//      x[i] = random_angle_ils();
+//    for (int i = solve_size - 3; i < solve_size; i++) {
+//      x[i] = random_number_ils(start_conr[conr_id]);
+//      conr_id++;
+//    }
+//    if (!box_start_checker(mol.ligand, size_x, size_y, size_z, mol.tr, ex_count, mol.encoding_inv, x))
+//      break;
+//  }
+//  VectorXd a = VectorXd::Zero(solve_size); //интервалы для того, чтобы генерировать векторы в этих пределах
+//  VectorXd b = VectorXd::Zero(solve_size); //причём генерируются только начальные 
+//  for(int i = 0 ; i < solve_size - 3 ; i++){
+////    b[i] = random_in_interval_urd(0, 2*M_PI);
+//    b[i] = random_angle_ils();
+//  }
+//  for(int i = solve_size - 3; i < solve_size; i++){
+//    double fxi = 0.2*fabs(x[i]);
+////    b[i] = random_in_interval_urd(x[i] - fxi, x[i] + fxi); //известные границы - здесь я так и не разобралась, какие границы ставить
+//    b[i] = random_in_interval_urd(x[i] - fxi, x[i] + fxi); 
+//    
+//    //вариант 1 - x[i] - 0.2*x[i], x[i] + 0.2*x[i]
+//    //вариант 2 -  -2*abs(x[i]),  2*abs(x[i]) - потому что...
+//    //Но и так и так работает одинаково (выдаёт один и тот же результат)
+//    //В пределах a , b будут задаваться координаты начальных (и только начальных) положений частиц роя
+//    //Поэтому, при достаточно большом количестве итераций частицы так или иначе соберуться у оптимального положения
+//  }
+  
 
 
   VectorXd r_p = VectorXd::Zero(solve_size); 
   VectorXd r_g = VectorXd::Zero(solve_size); 
+  double fx = 1000;
+  
+//  cout << "step 1\n";
 
-  //инициализация
+//  for(int j = 0; j < current_best.size(); j++){
+//
+//    current_best[j] = generate_Vector_coord_urd(a, b);
+//    velocity[j] = generate_Vector_velocity_urd(a, b);
+//    current_cords[j] = current_best[j];
+//    solver.minimize(mol, current_cords[j], fx);
+//    current_best_value[j] = fx;
+//  }
+  
+  
   for(int j = 0; j < current_best.size(); j++){
-
-    current_best[j] = generate_Vector_coord_urd(a, b);
-    velocity[j] = generate_Vector_velocity_urd(a, b);
-    current_cords[j] = current_best[j];
+    velocity[j] = VectorXd::Zero(solve_size); 
+    current_cords[j] = VectorXd::Zero(solve_size); 
+    current_best[j] = GenerateCoord(mol); 
+    for (int k = 0; k < solve_size; k++) {
+      current_cords[j][k] = current_best[j][k];
+    }
     solver.minimize(mol, current_cords[j], fx);
     current_best_value[j] = fx;
-
   }
-
-  bool flag = false; //флаг того, что изменяется меньше, чем на 10^-4
+  
+  
+//  cout << "step 2\n";
+  
+  
+  bool flag = false;
   bestans = current_best[0];
   best = current_best_value[0];
-  //сама оптимизация
+  double eps = 1e-7;
+  double phi_p = 1; 
+  double phi_g = 1; 
+  double k = 0.5;
+  double f = 1;
+  VectorXd x_old = VectorXd::Zero(solve_size); 
   for(int iteration = 0; iteration < depth; iteration++){
     for(int i = 0; i < current_cords.size(); i++){ //проходим по всем частицам
       r_p = generate_Vector_zero_one_urd(solve_size);
       r_g = generate_Vector_zero_one_urd(solve_size);
-      for(int j; j < solve_size; j++){
+      for(int j=0; j < solve_size; j++){
         velocity[i][j] = w*velocity[i][j] + f*r_p[j]*(current_best[i][j] - current_cords[i][j]) + f*r_g[j]*(bestans[j] - current_cords[i][j]);
         current_cords[i][j] = current_cords[i][j]+velocity[i][j];
       }
+      
+      x_old.noalias() = current_cords[i];
+      random_change(current_cords[i], x_old, dif, conr);
+      
       solver.minimize(mol, current_cords[i], fx);
       if(fx < current_best_value[i]){
         current_best_value[i] = fx;
         current_best[i] = current_cords[i];
       }
       if(fx < best){
-        if(best - fx < 0.0001){
+        if(fabs(best - fx) < eps){
           best = fx;
           bestans = current_cords[i];
           flag = true;
@@ -173,10 +241,257 @@ Eigen::VectorXd Swarm(Optimizable_molecule& mol, int depth, double dif) {
     }
     param.epsilon *= alpha;
     param.epsilon_rel *= alpha;
+    dif *= beta;
     if(flag) break;
 
   }
-
+//  cout << "step 3\n";
   return bestans;
+
+}
+
+
+Eigen::VectorXd swarm_mutate(Optimizable_molecule& mol, std::vector<VectorXd>& current_cords, std::vector<VectorXd>& current_velocity, 
+        std::vector<VectorXd>& current_best, std::vector<double>& current_best_value, int step,
+        VectorXd bestans, double& bestf, LBFGSSolver<double>& solver, double* PersonalBest) {
+  int solve_size = mol.encoding.size(); 
+  int rots_count = mol.rot_bonds_count;
+  int entities = 2 + mol.rot_bonds_count;
+  if (entities == 0) return bestans;
+  int which_int = random_int_ab(0, int(entities - 1));
+  size_t which = size_t(which_int);
+  srand((unsigned)time(NULL));
+  double r_cm;
+  r_cm = (double) rand() / (RAND_MAX + 1.0);
+  double w_cm;
+  w_cm = (double) rand() / (RAND_MAX + 1.0);
+  double fx = 1000;
+  VectorXd x_old = VectorXd::Zero(solve_size); 
+  double c1 = 0.99, c2 = 0.99;
+  if (which == 0) {
+    for(int i = 0; i < current_cords.size(); i++) {
+      //rough local search
+      x_old.noalias() = current_cords[i];
+      solver.minimize(mol, x_old, fx);
+      //set the personal best(energy value and position);
+      if(fx < current_best_value[i] || step <= 18) {
+        if (fx < current_best_value[i]) {
+          current_best_value[i] = fx;
+        }
+        VectorXd x2 = VectorXd::Zero(solve_size);
+        x2.noalias() = x_old;
+        solver.minimize(mol, x2, fx);
+        
+        if (fx < PersonalBest[i]) {
+          PersonalBest[i] = fx;
+          current_best_value[i] = fx;
+          current_best[i] = x2;
+        }
+        
+        //set the global best(energy value and position);
+        if(fx < bestf){
+          bestf = fx;
+          bestans.noalias() = current_cords[i];
+        }
+      }
+      //update chaotic map
+      r_cm = 1.07*(7.86*r_cm-23.31*r_cm*r_cm+28.75*r_cm*r_cm*r_cm-13.302875*r_cm*r_cm*r_cm*r_cm);
+      w_cm = 1.07*(7.86*w_cm-23.31*w_cm*w_cm+28.75*w_cm*w_cm*w_cm-13.302875*w_cm*w_cm*w_cm*w_cm);
+      
+      for(int i = 0; i < current_cords.size(); i++) {
+        for (int v = 3; v>0; v--) {
+          current_velocity[i][solve_size - v] = w_cm*current_velocity[i][solve_size - v] + 
+                  c1*r_cm*(current_best[i][solve_size - v] - current_cords[i][solve_size - v]) + 
+                  c2*(1-r_cm)*(bestans[solve_size - v] - current_cords[i][solve_size - v]);
+          current_cords[i][solve_size - v] = current_cords[i][solve_size - v]+current_velocity[i][solve_size - v];
+        }
+      }
+    }
+    return bestans;
+  }
+    
+  --which;
+  //Take part orientation
+  if (which == 0) {
+      for(int i = 0; i < current_cords.size(); i++) {
+        double g_rad = gyration_radius(current_cords[i], mol);
+        if (g_rad > epsilon_fl)  {
+          //rough local search
+          x_old.noalias() = current_cords[i];
+          solver.minimize(mol, x_old, fx);
+          //set the personal best(energy value and position);
+          if(fx < current_best_value[i] || step <= 18) {
+            if (fx < current_best_value[i]) {
+              current_best_value[i] = fx;
+            }
+            VectorXd x2 = VectorXd::Zero(solve_size);
+            x2.noalias() = x_old;
+            solver.minimize(mol, x2, fx);
+
+            if (fx < PersonalBest[i]) {
+              PersonalBest[i] = fx;
+              current_best_value[i] = fx;
+              current_cords[i] = x2;
+            }
+
+            //set the global best(energy value and position);
+            if(fx < bestf){
+              bestf = fx;
+              bestans.noalias() = current_cords[i];
+            }
+          }
+          //update chaotic map
+          r_cm = 1.07*(7.86*r_cm-23.31*r_cm*r_cm+28.75*r_cm*r_cm*r_cm-13.302875*r_cm*r_cm*r_cm*r_cm);
+          w_cm = 1.07*(7.86*w_cm-23.31*w_cm*w_cm+28.75*w_cm*w_cm*w_cm-13.302875*w_cm*w_cm*w_cm*w_cm);
+
+          for(int i = 0; i < current_cords.size(); i++) {
+            for (int v = 6; v>3; v--) {
+              current_velocity[i][solve_size - v] = w_cm*current_velocity[i][solve_size - v] + 
+                      c1*r_cm*(current_best[i][solve_size - v] - current_cords[i][solve_size - v]) + 
+                      c2*(1-r_cm)*(bestans[solve_size - v] - current_cords[i][solve_size - v]);
+              current_cords[i][solve_size - v] = current_cords[i][solve_size - v]+current_velocity[i][solve_size - v];
+            }
+          }
+        }
+      }
+      return bestans;
+  }
+  /*Torsions*/
+  --which;
+  if (which < rots_count) {
+    for(int i = 0; i < current_cords.size(); i++) {
+      //rough local search
+      x_old.noalias() = current_cords[i];
+      solver.minimize(mol, x_old, fx);
+      //set the personal best(energy value and position);
+      if(fx < current_best_value[i] || step <= 18) {
+        if (fx < current_best_value[i]) {
+          current_best_value[i] = fx;
+        }
+        VectorXd x2 = VectorXd::Zero(solve_size);
+        x2.noalias() = x_old;
+        solver.minimize(mol, x2, fx);
+        
+        if (fx < PersonalBest[i]) {
+          PersonalBest[i] = fx;
+          current_best_value[i] = fx;
+          current_cords[i] = x2;
+        }
+        
+        //set the global best(energy value and position);
+        if(fx < bestf){
+          bestf = fx;
+          bestans.noalias() = current_cords[i];
+        }
+      }
+      //update chaotic map
+      r_cm = 1.07*(7.86*r_cm-23.31*r_cm*r_cm+28.75*r_cm*r_cm*r_cm-13.302875*r_cm*r_cm*r_cm*r_cm);
+      w_cm = 1.07*(7.86*w_cm-23.31*w_cm*w_cm+28.75*w_cm*w_cm*w_cm-13.302875*w_cm*w_cm*w_cm*w_cm);
+      
+      for(int i = 0; i < current_cords.size(); i++) {
+        current_velocity[i][which] = w_cm*current_velocity[i][which] + 
+                  c1*r_cm*(current_best[i][which] - current_cords[i][which]) + 
+                  c2*(1-r_cm)*(bestans[which] - current_cords[i][which]);
+        current_cords[i][which] = current_cords[i][which]+current_velocity[i][which];
+      }
+    }
+  }
+  return bestans;  
+}
+
+
+Eigen::VectorXd SwarmPSO(Optimizable_molecule& mol, int depth, vector<mc_out>& outs) {
+  const int swarm_count = 8;
+  int solve_size = mol.encoding.size(); 
+  vector<VectorXd> current_cords;
+  std::vector<VectorXd> current_velocity;
+  std::vector<VectorXd> current_best;
+  std::vector<double> current_best_value;
+  current_cords.resize(swarm_count, VectorXd::Zero(solve_size));
+  current_velocity.resize(swarm_count, VectorXd::Zero(solve_size));
+  current_best.resize(swarm_count, VectorXd::Zero(solve_size));
+  current_best_value.resize(swarm_count, 1e9);
+
+  double size_x = mol.size_x; 
+  double size_y = mol.size_y;
+  double size_z = mol.size_z;
+  double conr[3] = {size_x, size_y, size_z}; 
+ 
+  LBFGSParam<double> param;
+  LBFGSSolver<double> solver(param);
+  param.epsilon = 0.0001;
+  param.epsilon_rel = 0.0001;
+//  param.max_iterations = mol.max_bfgs_iterations;
+  double alpha = 0.99995, beta = 0.99995;
+  VectorXd bestans = VectorXd::Zero(solve_size);
+  VectorXd bestans_result = VectorXd::Zero(solve_size);
+  double fx = 1e9;
+  
+  for(int j = 0; j < current_best.size(); j++){
+    current_velocity[j] = VectorXd::Zero(solve_size); 
+    current_cords[j] = VectorXd::Zero(solve_size); 
+    current_best[j] = GenerateCoord(mol); 
+    for (int k = 0; k < solve_size; k++) {
+      current_cords[j][k] = current_best[j][k];
+    }
+//    solver.minimize(mol, current_cords[j], fx);
+    current_best_value[j] = fx;
+  }
+ 
+  
+  bool flag = false;
+  double bestf = 1e9;
+  double best_e = 1e9;
+  bestans = current_best[0];
+  bestf = current_best_value[0];
+  double tmp_e = bestf;
+  double eps = 1e-5;
+  double k = 0.5;
+  double f = 1;
+  VectorXd tmp = VectorXd::Zero(solve_size);
+  VectorXd candidate = VectorXd::Zero(solve_size);
+  double* PersonalBest = new double[swarm_count];
+  double energy = 0;
+  int count = 0;
+  for(int cou = 0; cou < swarm_count; cou++)
+    PersonalBest[cou] = 0;
+  int num_steps = mol.num_steps;
+//  num_steps = 50;
+  for(int iteration = 0; iteration < num_steps; iteration++){
+    for(int i = 0; i < current_cords.size(); i++){
+      mol.assign_hunt_cap();
+      candidate.noalias() = bestans;
+      bestans = swarm_mutate(mol, current_cords, current_velocity, current_best, current_best_value, iteration, bestans, bestf, solver, PersonalBest);
+      if (iteration == 0 || metropolis_accept(tmp_e, bestf, mol.temperature)) {
+        tmp.noalias() = bestans;
+        tmp_e = bestf;
+        if (tmp_e < best_e || outs.size() < mol.num_saved_mins) {
+//          mol.assign_aut_cap();
+          solver.minimize(mol, tmp, tmp_e);
+          add_to_output_container(outs, tmp, mol, tmp_e); // 20 - max size
+          if (tmp_e < best_e) {
+            best_e = tmp_e;
+            bestans_result.noalias() = tmp;
+          }
+        }
+      }
+    }
+    //only for very promising ones
+    if(std::abs(bestf - energy) < 0.0001) {
+      count += 1;
+      if(count > 350) {
+        iteration = num_steps; //break the loop
+        count = 0;
+      }
+    }
+    else{
+      energy = bestf;
+      count = 0;
+    }
+//    param.epsilon *= alpha;
+//    param.epsilon_rel *= alpha;
+//    dif *= beta;
+  }
+  return bestans_result;
 
 }

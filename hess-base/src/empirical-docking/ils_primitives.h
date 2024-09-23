@@ -63,3 +63,6 @@ bool metropolis_accept(double old_f, double new_f, double temperature);
 void add_to_output_container(vector<mc_out>& outs, VectorXd& tmp, Optimizable_molecule& mol, double e);
 void merge_output_containers(vector<mc_out>& all_outs, vector<mc_out>& outs, Optimizable_molecule& mol);
 int random_int_ab(int min, int max);
+double random_fl_ab(double min, double max);
+double gyration_radius(Eigen::VectorXd& x, Optimizable_molecule& mol);
+Eigen::VectorXd SwarmPSO(Optimizable_molecule& mol, int depth, vector<mc_out>& outs);

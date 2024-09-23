@@ -30,3 +30,4 @@ void form_ils_results(vector<pair<Eigen::VectorXd, pair<double, double>>>& resul
 pair<double, double> calc_energy_for_result(hess::Molecule *lig, hess::Molecule *prot, simplified_tree &tr, ConfIndependentInputs& in, const vector<int>& encoding_inv, const Eigen::VectorXd& x, const char* scoring);
 double calc_energy(hess::Molecule *lig, hess::Molecule *prod, ConfIndependentInputs& in, const char* scoring);
 void sort_configurations(vector<pair<Eigen::VectorXd, pair<double, double>>>& result_pairs);
+double random_fl_ab(double min, double max);

@@ -72,6 +72,11 @@ bool check_exceeded_box_limits(hess::Molecule *lig, double size_x, double size_y
 }
 
 double random_fl_ab(double min, double max) {
+  if (max < min) {
+    double tmp = min;
+    min = max;
+    max = tmp;
+  }
   double rand_num = (double) rand() / RAND_MAX * (max - min) + min;
   assert(rand_num >= min && min <= max);
   return rand_num;

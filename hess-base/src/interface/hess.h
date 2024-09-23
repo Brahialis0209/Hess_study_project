@@ -51,6 +51,7 @@ extern "C" {
   void hessFillGrid(void* opt_v, int grid_deriv_flag);
 
   int hessRunSwarm(int number_of_iterations, int depth, void* opt_v, double* result_array, int tops_count);
+  int hessRunSwarmPCO(int number_of_iterations, void* opt_v, double* result_array, int tops_count, int depth);
 
 
 #ifdef __cplusplus

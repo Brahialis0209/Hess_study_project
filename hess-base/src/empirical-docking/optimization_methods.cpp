@@ -17,6 +17,7 @@
  **************************************************************************/
 
 #include "optimization_methods.h"
+#include "ils_primitives.h"
 
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
@@ -63,6 +64,11 @@ void random_change(VectorXd& v, VectorXd& old_v, double coef, double conr[3]) {
     double a = random_angle_ils();
     v[i] = circlecome_ils(old_v[i], a, coef);
   }
+//  int bond_id = random_int_ab(0, int(old_v.size() - 6)-1);
+//  int flag = random_int_ab(0, 1);
+//  if (flag) {
+//    v[bond_id] = random_angle_ils();
+//  }
   for (int i = v.size() - 3; i < v.size(); i++) {
     double a = random_number_ils(conr[conr_id]);
     v[i] = usualcome_ils(old_v[i], a, coef);

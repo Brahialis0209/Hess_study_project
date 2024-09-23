@@ -381,6 +381,9 @@ int hessRunOptimize(int number_of_iterations, int depth, void* opt_v, double* re
   } else if (opt->optimize == "swarm"){
     error_flag = hessRunSwarm(number_of_iterations, depth, opt_v, result_array, tops_count);
   }
+  else if (opt->optimize == "swarm_metropolis"){
+    error_flag = hessRunSwarmPCO(number_of_iterations, opt_v, result_array, tops_count, depth);
+  }
   return error_flag;
 }
 
@@ -446,7 +449,7 @@ int hessRunSwarm(int number_of_iterations, int depth, void* opt_v, double* resul
     fprintf(hessGetStream(), "Starting Swarm. Number of iterations: %d. Depth: %d\n", number_of_iterations, depth);
 
     for (int i = 0; i < number_of_iterations; i++) {
-      Eigen::VectorXd swarm_result;
+      Eigen::VectorXd swarm_result = VectorXd::Zero(opt->encoding.size());
 
       swarm_result = Swarm(*opt, depth, dif);
 
@@ -520,6 +523,56 @@ int hessRunMonteCarlo(int number_of_iterations, void* opt_v, double* result_arra
     return -1;
   }
 }
+
+
+
+
+int hessRunSwarmPCO(int number_of_iterations, void* opt_v, double* result_array, int tops_count, int depth) {
+  try {
+    Optimizable_molecule *opt = to_optmolecule(opt_v);
+    const char* scoring_type = opt->scoring;
+    hess::Molecule* ord_lig = opt->ligand;
+    hess::Molecule* ord_rec = opt->receptor;
+    unsigned max_bfgs_iterations = unsigned((25.0 + ord_lig->get_atoms_count()) / 3.0);
+    opt->set_max_bfgs_iterations(max_bfgs_iterations);
+    vector< pair< Eigen::VectorXd, pair<double, double> > >result_pairs;
+    vector<mc_out> mc_all_results;
+    srand(opt->seed);
+    fprintf(hessGetStream(), "Seed: %d\n", opt->seed);
+    fprintf(hessGetStream(), "Starting Swarm with Metropolis. Number of steps: %d. Number of iterations: %d\n", opt->num_steps, number_of_iterations);
+    for (int i = 0; i < number_of_iterations; i++) {
+      vector<mc_out> mc_results;
+      SwarmPSO(*opt, depth, mc_results);
+      fprintf(hessGetStream(), "Iteration %3i Current top energy: %7.3g\n", i + 1, mc_results[0].get_energy());
+      merge_output_containers(mc_all_results, mc_results, *opt);
+    }
+    for (int i = 0; i < opt->num_saved_mins; i++) {
+      Eigen::VectorXd mc_solve = VectorXd::Zero(opt->encoding.size());
+      mc_solve = mc_all_results[i].solve;
+      pair<double, double> res = calc_energy_for_result(ord_lig, ord_rec, opt->tr, opt->in, opt->encoding_inv, mc_solve, scoring_type);
+      result_pairs.push_back({mc_solve,
+        {res.first, res.second}});
+    }
+    sort_configurations(result_pairs);
+    opt->tops_count = min((unsigned) result_pairs.size(), (unsigned) tops_count);
+    form_ils_results(result_pairs, opt);
+    result_array[0] = result_pairs[0].second.first;
+    result_array[1] = result_pairs[0].second.second;
+    return 0;
+  } catch (HessException &e) {
+    _error_message = e.what();
+    return -1;
+  } catch (indigo::Exception &e) {
+    _error_message = e.what();
+    return -1;
+  } catch (exception &e) {
+    _error_message = e.what();
+    return -1;
+  }
+}
+
+
+
 
 void hessDestroy(void *object) {
   delete (HessObject*) object;
