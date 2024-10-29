@@ -251,13 +251,14 @@ Eigen::VectorXd Swarm(Optimizable_molecule& mol, int depth, double dif) {
 }
 
 
-Eigen::VectorXd swarm_mutate(Optimizable_molecule& mol, std::vector<VectorXd>& current_cords, std::vector<VectorXd>& current_velocity, 
+void swarm_mutate(VectorXd& candidate, VectorXd& candidate_1, double& candidate_e, double& candidate_1_e, Optimizable_molecule& mol,
+        std::vector<VectorXd>& current_cords, std::vector<VectorXd>& current_velocity, 
         std::vector<VectorXd>& current_best, std::vector<double>& current_best_value, int step,
-        VectorXd bestans, double& bestf, LBFGSSolver<double>& solver, double* PersonalBest) {
+        VectorXd& bestans, double& bestf, LBFGSSolver<double>& solver, double* PersonalBest) {
   int solve_size = mol.encoding.size(); 
   int rots_count = mol.rot_bonds_count;
   int entities = 2 + mol.rot_bonds_count;
-  if (entities == 0) return bestans;
+  if (entities == 0) return;
   int which_int = random_int_ab(0, int(entities - 1));
   size_t which = size_t(which_int);
   srand((unsigned)time(NULL));
@@ -265,33 +266,35 @@ Eigen::VectorXd swarm_mutate(Optimizable_molecule& mol, std::vector<VectorXd>& c
   r_cm = (double) rand() / (RAND_MAX + 1.0);
   double w_cm;
   w_cm = (double) rand() / (RAND_MAX + 1.0);
-  double fx = 1000;
-  VectorXd x_old = VectorXd::Zero(solve_size); 
   double c1 = 0.99, c2 = 0.99;
+  VectorXd tmp_2 = VectorXd::Zero(solve_size);;
+  tmp_2.noalias() = candidate;
+  double tmp_2_e = candidate_e;
   if (which == 0) {
     for(int i = 0; i < current_cords.size(); i++) {
       //rough local search
-      x_old.noalias() = current_cords[i];
-      solver.minimize(mol, x_old, fx);
+      candidate = current_cords[i];
+      solver.minimize(mol, candidate, candidate_e);
       //set the personal best(energy value and position);
-      if(fx < current_best_value[i] || step <= 18) {
-        if (fx < current_best_value[i]) {
-          current_best_value[i] = fx;
+      if(candidate_e < current_best_value[i] || step <= 18) {
+        if (candidate_e < current_best_value[i]) {
+          current_best_value[i] = candidate_e;
+          current_best[i] = candidate;
         }
-        VectorXd x2 = VectorXd::Zero(solve_size);
-        x2.noalias() = x_old;
-        solver.minimize(mol, x2, fx);
+        tmp_2.noalias() = candidate;
+        tmp_2_e = candidate_e;
+        solver.minimize(mol, tmp_2, tmp_2_e);
         
-        if (fx < PersonalBest[i]) {
-          PersonalBest[i] = fx;
-          current_best_value[i] = fx;
-          current_best[i] = x2;
+        if (tmp_2_e < PersonalBest[i]) {
+          PersonalBest[i] = tmp_2_e;
+          current_best_value[i] = tmp_2_e;
+          current_best[i] = tmp_2;
         }
         
         //set the global best(energy value and position);
-        if(fx < bestf){
-          bestf = fx;
-          bestans.noalias() = current_cords[i];
+        if(tmp_2_e < bestf){
+          bestf = tmp_2_e;
+          bestans = tmp_2;
         }
       }
       //update chaotic map
@@ -307,7 +310,9 @@ Eigen::VectorXd swarm_mutate(Optimizable_molecule& mol, std::vector<VectorXd>& c
         }
       }
     }
-    return bestans;
+    candidate_1_e = bestf;
+    candidate_1 = bestans;
+    return;
   }
     
   --which;
@@ -317,27 +322,28 @@ Eigen::VectorXd swarm_mutate(Optimizable_molecule& mol, std::vector<VectorXd>& c
         double g_rad = gyration_radius(current_cords[i], mol);
         if (g_rad > epsilon_fl)  {
           //rough local search
-          x_old.noalias() = current_cords[i];
-          solver.minimize(mol, x_old, fx);
+          candidate = current_cords[i];
+          solver.minimize(mol, candidate, candidate_e);
           //set the personal best(energy value and position);
-          if(fx < current_best_value[i] || step <= 18) {
-            if (fx < current_best_value[i]) {
-              current_best_value[i] = fx;
+          if(candidate_e < current_best_value[i] || step <= 18) {
+            if (candidate_e < current_best_value[i]) {
+              current_best_value[i] = candidate_e;
+              current_best[i] = candidate;
             }
-            VectorXd x2 = VectorXd::Zero(solve_size);
-            x2.noalias() = x_old;
-            solver.minimize(mol, x2, fx);
+            tmp_2.noalias() = candidate;
+            tmp_2_e = candidate_e;
+            solver.minimize(mol, tmp_2, tmp_2_e);
 
-            if (fx < PersonalBest[i]) {
-              PersonalBest[i] = fx;
-              current_best_value[i] = fx;
-              current_cords[i] = x2;
+            if (tmp_2_e < PersonalBest[i]) {
+              PersonalBest[i] = tmp_2_e;
+              current_best_value[i] = tmp_2_e;
+              current_best[i] = tmp_2;
             }
 
             //set the global best(energy value and position);
-            if(fx < bestf){
-              bestf = fx;
-              bestans.noalias() = current_cords[i];
+            if(tmp_2_e < bestf){
+              bestf = tmp_2_e;
+              bestans = tmp_2;
             }
           }
           //update chaotic map
@@ -354,34 +360,37 @@ Eigen::VectorXd swarm_mutate(Optimizable_molecule& mol, std::vector<VectorXd>& c
           }
         }
       }
-      return bestans;
+      candidate_1_e = bestf;
+      candidate_1 = bestans;
+      return;
   }
   /*Torsions*/
   --which;
   if (which < rots_count) {
     for(int i = 0; i < current_cords.size(); i++) {
       //rough local search
-      x_old.noalias() = current_cords[i];
-      solver.minimize(mol, x_old, fx);
+      candidate = current_cords[i];
+      solver.minimize(mol, candidate, candidate_e);
       //set the personal best(energy value and position);
-      if(fx < current_best_value[i] || step <= 18) {
-        if (fx < current_best_value[i]) {
-          current_best_value[i] = fx;
+      if(candidate_e < current_best_value[i] || step <= 18) {
+        if (candidate_e < current_best_value[i]) {
+          current_best_value[i] = candidate_e;
+          current_best[i] = candidate;
         }
-        VectorXd x2 = VectorXd::Zero(solve_size);
-        x2.noalias() = x_old;
-        solver.minimize(mol, x2, fx);
+        tmp_2.noalias() = candidate;
+        tmp_2_e = candidate_e;
+        solver.minimize(mol, tmp_2, tmp_2_e);
         
-        if (fx < PersonalBest[i]) {
-          PersonalBest[i] = fx;
-          current_best_value[i] = fx;
-          current_cords[i] = x2;
+        if (tmp_2_e < PersonalBest[i]) {
+          PersonalBest[i] = tmp_2_e;
+          current_best_value[i] = tmp_2_e;
+          current_best[i] = tmp_2;
         }
         
         //set the global best(energy value and position);
-        if(fx < bestf){
-          bestf = fx;
-          bestans.noalias() = current_cords[i];
+        if(tmp_2_e < bestf){
+          bestf = tmp_2_e;
+          bestans = tmp_2;
         }
       }
       //update chaotic map
@@ -396,12 +405,14 @@ Eigen::VectorXd swarm_mutate(Optimizable_molecule& mol, std::vector<VectorXd>& c
       }
     }
   }
-  return bestans;  
+  candidate_1_e = bestf;
+  candidate_1 = bestans;
+  return; 
 }
 
 
 Eigen::VectorXd SwarmPSO(Optimizable_molecule& mol, int depth, vector<mc_out>& outs) {
-  const int swarm_count = 8;
+  const int swarm_count = mol.ligand->get_atoms_count()*3;
   int solve_size = mol.encoding.size(); 
   vector<VectorXd> current_cords;
   std::vector<VectorXd> current_velocity;
@@ -410,7 +421,7 @@ Eigen::VectorXd SwarmPSO(Optimizable_molecule& mol, int depth, vector<mc_out>& o
   current_cords.resize(swarm_count, VectorXd::Zero(solve_size));
   current_velocity.resize(swarm_count, VectorXd::Zero(solve_size));
   current_best.resize(swarm_count, VectorXd::Zero(solve_size));
-  current_best_value.resize(swarm_count, 1e9);
+  current_best_value.resize(swarm_count, max_fl);
 
   double size_x = mol.size_x; 
   double size_y = mol.size_y;
@@ -421,61 +432,66 @@ Eigen::VectorXd SwarmPSO(Optimizable_molecule& mol, int depth, vector<mc_out>& o
   LBFGSSolver<double> solver(param);
   param.epsilon = 0.0001;
   param.epsilon_rel = 0.0001;
-//  param.max_iterations = mol.max_bfgs_iterations;
+  param.max_iterations = mol.max_bfgs_iterations;
   double alpha = 0.99995, beta = 0.99995;
   VectorXd bestans = VectorXd::Zero(solve_size);
   VectorXd bestans_result = VectorXd::Zero(solve_size);
-  double fx = 1e9;
+  double fx = max_fl;
   
   for(int j = 0; j < current_best.size(); j++){
     current_velocity[j] = VectorXd::Zero(solve_size); 
     current_cords[j] = VectorXd::Zero(solve_size); 
-    current_best[j] = GenerateCoord(mol); 
-    for (int k = 0; k < solve_size; k++) {
-      current_cords[j][k] = current_best[j][k];
-    }
+    current_cords[j] = GenerateCoord(mol); 
 //    solver.minimize(mol, current_cords[j], fx);
+    current_best[j].noalias() = current_cords[j];
     current_best_value[j] = fx;
   }
  
   
   bool flag = false;
-  double bestf = 1e9;
-  double best_e = 1e9;
-  bestans = current_best[0];
-  bestf = current_best_value[0];
+  double bestf = max_fl;
+  double best_e = max_fl;
+//  bestans = current_best[0];
+//  bestf = current_best_value[0];
   double tmp_e = bestf;
   double eps = 1e-5;
   double k = 0.5;
   double f = 1;
-  VectorXd tmp = VectorXd::Zero(solve_size);
-  VectorXd candidate = VectorXd::Zero(solve_size);
+  VectorXd tmp_rough = VectorXd::Zero(solve_size);
+  VectorXd tmp = GenerateCoord(mol); 
+  tmp_rough.noalias() = tmp; 
+  double candidate_1_e = max_fl;
+  double candidate_e = max_fl;
   double* PersonalBest = new double[swarm_count];
-  double energy = 0;
+  double energy = max_fl;
   int count = 0;
   for(int cou = 0; cou < swarm_count; cou++)
     PersonalBest[cou] = 0;
   int num_steps = mol.num_steps;
 //  num_steps = 50;
-  for(int iteration = 0; iteration < num_steps; iteration++){
-    for(int i = 0; i < current_cords.size(); i++){
-      mol.assign_hunt_cap();
-      candidate.noalias() = bestans;
-      bestans = swarm_mutate(mol, current_cords, current_velocity, current_best, current_best_value, iteration, bestans, bestf, solver, PersonalBest);
-      if (iteration == 0 || metropolis_accept(tmp_e, bestf, mol.temperature)) {
-        tmp.noalias() = bestans;
-        tmp_e = bestf;
-        if (tmp_e < best_e || outs.size() < mol.num_saved_mins) {
-//          mol.assign_aut_cap();
-          solver.minimize(mol, tmp, tmp_e);
-          add_to_output_container(outs, tmp, mol, tmp_e); // 20 - max size
-          if (tmp_e < best_e) {
-            best_e = tmp_e;
-            bestans_result.noalias() = tmp;
-          }
+  VectorXd candidate = VectorXd::Zero(solve_size);
+  VectorXd candidate_1 = VectorXd::Zero(solve_size);
+  for(int iteration = 0; iteration < num_steps; iteration++) {
+    mol.assign_hunt_cap();
+    candidate.noalias() = tmp_rough;
+    candidate_1.noalias() = tmp;
+    swarm_mutate(candidate, candidate_1, candidate_e, candidate_1_e, mol, current_cords, current_velocity, current_best, current_best_value, 
+            iteration, bestans, bestf, solver, PersonalBest);
+    tmp_rough.noalias() = candidate;
+    if (iteration == 0 || metropolis_accept(tmp_e, candidate_1_e, mol.temperature)) {
+      tmp.noalias() = candidate_1;
+      tmp_e = candidate_1_e;
+      if (tmp_e < best_e || outs.size() < mol.num_saved_mins) {
+        mol.assign_aut_cap();
+        solver.minimize(mol, tmp, tmp_e);
+        add_to_output_container(outs, tmp, mol, tmp_e); // 20 - max size
+        if (tmp_e < best_e) {
+          best_e = tmp_e;
+          bestans_result.noalias() = tmp;
         }
       }
     }
+    
     //only for very promising ones
     if(std::abs(bestf - energy) < 0.0001) {
       count += 1;

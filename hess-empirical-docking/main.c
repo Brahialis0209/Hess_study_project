@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {
     return -1;
   }
   double result[2] = {0};
-  fprintf(stream, "Version: Aug 30, 2024\n");
+  fprintf(stream, "Version: Oct 8, 2024\n");
   void* opt_molecule = hessMakeOptimizableMolecule(lig_atoms, rec_atoms, box, optimize, granularity, seed);
   if (opt_molecule == NULL) {
     hessDestroy(parser);

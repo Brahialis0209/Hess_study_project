@@ -178,7 +178,7 @@ grid_new(num_atom_types()), grid_deriv_new(num_atom_types()) {
   int heuristic = ligand->get_atoms_count() + 10 * (rot_bonds_count + 6);
   num_steps = unsigned(70 * 3 * (50 + heuristic) / 2);
   if (optimize == "swarm_metropolis")
-    num_steps = ligand->get_atoms_count()*5;
+    num_steps = ligand->get_atoms_count()*50;
 }
 
 Optimizable_molecule::~Optimizable_molecule() {

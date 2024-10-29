@@ -536,7 +536,7 @@ int hessRunSwarmPCO(int number_of_iterations, void* opt_v, double* result_array,
     unsigned max_bfgs_iterations = unsigned((25.0 + ord_lig->get_atoms_count()) / 3.0);
     opt->set_max_bfgs_iterations(max_bfgs_iterations);
     vector< pair< Eigen::VectorXd, pair<double, double> > >result_pairs;
-    vector<mc_out> mc_all_results;
+    vector<mc_out> mc_all_results;  
     srand(opt->seed);
     fprintf(hessGetStream(), "Seed: %d\n", opt->seed);
     fprintf(hessGetStream(), "Starting Swarm with Metropolis. Number of steps: %d. Number of iterations: %d\n", opt->num_steps, number_of_iterations);
@@ -546,9 +546,9 @@ int hessRunSwarmPCO(int number_of_iterations, void* opt_v, double* result_array,
       fprintf(hessGetStream(), "Iteration %3i Current top energy: %7.3g\n", i + 1, mc_results[0].get_energy());
       merge_output_containers(mc_all_results, mc_results, *opt);
     }
-    for (int i = 0; i < opt->num_saved_mins; i++) {
+    for (int i = 0; i < min( (unsigned)opt->num_saved_mins, (unsigned)mc_all_results.size() ); i++) {
       Eigen::VectorXd mc_solve = VectorXd::Zero(opt->encoding.size());
-      mc_solve = mc_all_results[i].solve;
+      mc_solve.noalias() = mc_all_results[i].solve;
       pair<double, double> res = calc_energy_for_result(ord_lig, ord_rec, opt->tr, opt->in, opt->encoding_inv, mc_solve, scoring_type);
       result_pairs.push_back({mc_solve,
         {res.first, res.second}});

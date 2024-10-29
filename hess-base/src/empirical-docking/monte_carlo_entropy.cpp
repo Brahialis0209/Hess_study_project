@@ -27,9 +27,7 @@ using namespace LBFGSpp;
 void monte_carlo(Optimizable_molecule& mol, vector<mc_out>& outs) {
   LBFGSParam<double> param;
   LBFGSSolver<double> solver(param);
-  param.epsilon = 0.0001;
-  param.epsilon_rel = 0.0001;
-  param.max_iterations = mol.max_bfgs_iterations;
+//  param.max_iterations = mol.max_bfgs_iterations;
   int solve_size = mol.rot_bonds_count + 6;
   VectorXd tmp = VectorXd::Zero(solve_size);
   VectorXd candidate = VectorXd::Zero(solve_size);

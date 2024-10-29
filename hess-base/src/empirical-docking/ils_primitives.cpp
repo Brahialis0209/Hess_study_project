@@ -303,7 +303,8 @@ void add_to_output_container(vector<mc_out>& outs, VectorXd& tmp, Optimizable_mo
     if (e < outs[closest_rmsd.first].get_energy()) { // the new one is better, apparently
       outs[closest_rmsd.first] = mc_out(coords, tmp, e);
     }
-  } else { // nothing similar
+  } 
+  else { // nothing similar
     if (outs.size() < mol.num_saved_mins)
       outs.push_back(mc_out(coords, tmp, e)); // the last one had the worst energy - replacing 
     else
@@ -311,7 +312,7 @@ void add_to_output_container(vector<mc_out>& outs, VectorXd& tmp, Optimizable_mo
       outs.back() = mc_out(coords, tmp, e);
   }
   sort(outs.begin(), outs.end(), [ ](const auto& l, const auto& r) {
-    return l.e < r.e; });
+  return l.e < r.e; });
 }
 
 void add_to_output_container_for_res(vector<mc_out>& outs, const VectorXd& tmp, Optimizable_molecule& mol, double e, const vector<hess::Vec3d>& coords) {
